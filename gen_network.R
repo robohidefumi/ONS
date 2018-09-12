@@ -1,5 +1,6 @@
 library("statnet")
 library("dplyr")
+library(RColorBrewer)
 
 setwd("~/pj/ONS/dat/")
 net.relation <- read.csv(file="MyData.csv")
@@ -32,6 +33,31 @@ df.cent <- data.frame(
 write.csv(df.cent, file="MyCenter.csv",row.names = FALSE)
 
 ### Visualization
+
+#### ggplot
+library(ggplot2)
+# use display.brewer.all() to see all options
+
+##### deg histgram
+ggplot(df.cent, aes(deg)) + geom_histogram()
+ggplot(df.cent, aes(deg)) + geom_freqpoly()
+
+ggplot(df.cent, aes(deg, colour = cla)) + geom_freqpoly(binwidth = 0.5)
+ggplot(df.cent, aes(deg, fill = cla)) + 
+  geom_histogram(binwidth = 0.5) +
+  facet_wrap(~cla, ncol = 1)
+
+##### deg & bet map
+ggplot(df.cent, aes(deg,bet)) +
+  geom_point(aes(colour = cla)) 
+#  + scale_colour_brewer(palette="Set3")
+ggplot(df.cent, aes(deg,bet)) +
+  geom_point() +
+  facet_wrap(~cla)
+
+##### 
+
+#### Network Map
 rescale <- function(nchar, low, high){
   min_d <- min(nchar)
   max_d <- max(nchar)
