@@ -1,3 +1,4 @@
+library("dplyr")
 library("rlist")
 library("statnet")
 
@@ -25,7 +26,7 @@ class_list <- list.map(out_list,class)
 class_df <- list.rbind(class_list)
 
 ### class
-setwd("~/work/ONS/")
+setwd("~/pj/ONS/dat/")
 class_name <- read.csv("class_name.csv",header=TRUE)
 class_n_df <- all_df[,c("name","id_concept_class")]
 class_merged <- class_n_df %>% left_join(class_name,by="id_concept_class")
