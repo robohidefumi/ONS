@@ -48,12 +48,22 @@ ggplot(df.cent, aes(deg, fill = cla)) +
   facet_wrap(~cla, ncol = 1)
 
 ##### deg & bet map
+deg_t <- 40
+bet_t <- 10000
+
 ggplot(df.cent, aes(deg,bet)) +
-  geom_point(aes(colour = cla)) 
+  geom_point(aes(colour = cla)) +
+  geom_text(
+    data=subset(df.cent, deg > deg_t | bet > bet_t),
+    aes(deg,bet,label=con))
+
 #  + scale_colour_brewer(palette="Set3")
 ggplot(df.cent, aes(deg,bet)) +
   geom_point() +
-  facet_wrap(~cla)
+  facet_wrap(~cla) +
+  geom_text(
+    data=subset(df.cent, deg > deg_t | bet > bet_t),
+    aes(deg,bet,label=con))
 
 ##### 
 

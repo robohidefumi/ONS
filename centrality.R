@@ -1,3 +1,5 @@
+library("statnet")
+library("dplyr")
 library(RColorBrewer)
 
 rescale <- function(nchar, low, high){
@@ -7,10 +9,12 @@ rescale <- function(nchar, low, high){
   rscl
 }
 
+
 net <- network(net_import)
 
 df.cent <- data.frame(
   con = net %v% 'vertex.names',
+  cla = net %v% 'class',
   deg = degree(net_import,gmode="graph",cmode="indegree"),
   cls = closeness(net_import,gmode="graph"),
   bet = betweenness(net_import,gmode="graph"),
@@ -20,10 +24,12 @@ df.cent <- data.frame(
 ### legend_class
 my_pal <- brewer.pal(10,"Paired")
 classcat <- as.factor(get.vertex.attribute(net_import,"class"))
-plot(net_import,vertex.cex=rescale(df.cent$bet,1,7),vertex.col=my_pal[classcat])
+op <- par(mar=c(2,0,2,0))
+plot(net_import,vertex.cex=rescale(df.cent$bet,1,7),vertex.col=my_pal[classcat],main="Concepts colored by Class")
 legend("bottomleft",legend=levels(classcat),
-       col=my_pal,pch=19, pt.cex=1.5, bty="n",
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
        title="Concept Class")
+par(op)
 
 
 ###### misc
