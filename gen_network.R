@@ -1,3 +1,4 @@
+detach(package:igraph)
 library("statnet")
 library("dplyr")
 library(RColorBrewer)
@@ -14,7 +15,8 @@ df_c_attribute <- data.frame(
   src_name = net_import %v% 'vertex.names'
 )
 df_c_merged <- df_c_attribute %>% left_join(class_map,by="src_name")
-net_import <- set.vertex.attribute(net_import,"class",df_c_merged[,2])
+net_import %v% 'class' <- as.vector(df_c_merged[,2])
+#net_import <- set.vertex.attribute(net_import,"class",as.vector(df_c_merged[,2]))
 
 ### creating adjacent matrix
 adjacent <- as.sociomatrix(net_import)
@@ -75,12 +77,43 @@ rescale <- function(nchar, low, high){
   rscl
 }
 
+####
 my_pal <- brewer.pal(10,"Paired")
 classcat <- as.factor(get.vertex.attribute(net_import,"class"))
+#### without label & with rescale
 op <- par(mar=c(2,0,2,0))
-plot(net_import,vertex.cex=rescale(df.cent$bet,1,7),vertex.col=my_pal[classcat],main="Concepts colored by Class")
+plot(net_import,vertex.cex=rescale(df.cent$bet,1,10),
+     vertex.col=my_pal[classcat],
+#     label = ifelse(betweenness(net_import,gmode="graph")>bet_t, net_import %v% 'vertex.names',""),
+#     displaylabels=TRUE,
+     main="Concepts colored by Class")
 ### legend_class
 legend("bottomleft",legend=levels(classcat),
        col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
        title="Concept Class")
+par(op)
+
+#### with label & without rescale
+op <- par(mar=c(2,0,2,0))
+plot(net_import,
+     vertex.cex=rescale(df.cent$bet,1,10),
+     vertex.col=my_pal[classcat],
+     label = ifelse(betweenness(net_import,gmode="graph")>bet_t, net_import %v% 'vertex.names',""),
+     label.cex = 0.5,
+     displaylabels=TRUE,
+     main="Concepts colored by Class")
+### legend_class
+legend("bottomleft",legend=levels(classcat),
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+       title="Concept Class")
+par(op)
+
+#### igraph
+detach(package:statnet)
+library(igraph)
+library(intergraph)
+
+iCon <- asIgraph(net_import)
+op <- par(mar=c(2,0,2,0))
+plot(iCon,layout=layout_with_kk)
 par(op)
