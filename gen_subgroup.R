@@ -106,8 +106,139 @@ cluster_df <- data_frame(
 
 cluster_group <- cluster_df %>% 
   group_by(cl,cle) %>% 
-  summarise(n = n()) %>% 
-  arrange(desc(n))
+  summarise(all_n = n()) %>% 
+  arrange(desc(all_n))
+
+cluster_cl <- cluster_df %>% 
+  group_by(cl) %>% 
+  summarise(cl_n = n()) %>% 
+  arrange(desc(cl_n))
+
+cluster_cle <- cluster_df %>% 
+  group_by(cle) %>% 
+  summarise(cle_n = n()) %>% 
+  arrange(desc(cle_n))
+
+cluster_cla <- cluster_df %>% 
+  group_by(class) %>% 
+  summarise(cla_n = n()) %>% 
+  arrange(desc(cla_n))
+
+cluster_cl_m <- cluster_group %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_m <- cluster_cl_m %>%
+  left_join(cluster_cle,by="cle")
+
+cluster_m <- cluster_m %>% mutate(cl_ratio = all_n/cl_n)
+cluster_m <- cluster_m %>% mutate(cle_ratio = all_n/cle_n)
+cluster_m <- cluster_m %>% mutate(all_ratio = cl_ratio + cle_ratio)
+cluster_m <- cluster_m %>% mutate(label = paste(cl,"&",cle))
+cluster_m %>% arrange(desc(all_ratio))
+
+### plot
+all_n_threshold = 10
+all_ratio_threshold = 1
+ggplot(cluster_m, aes(all_ratio, all_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_m, 
+                all_ratio >  all_ratio_threshold & 
+                all_n > all_n_threshold),
+    aes(all_ratio, all_n,label=label)
+    )
+###
+
+cluster_clacl <- cluster_df %>% 
+  group_by(class,cl) %>% 
+  summarise(clacl_n = n()) %>% 
+  arrange(desc(clacl_n))
+
+cluster_clacl_m <- cluster_clacl %>%
+  left_join(cluster_cla,by="class")
+
+cluster_clacl_m <- cluster_clacl_m %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_clacl_m <- cluster_clacl_m %>% mutate(cla_ratio = clacl_n/cla_n)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(cl_ratio = clacl_n/cl_n)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(clacl_ratio = cla_ratio + cl_ratio)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(label = paste(substr(class,1,2),"&",cl))
+cluster_clacl_m %>% arrange(desc(clacl_ratio))
+
+### plot
+clacl_n_threshold = 10
+clacl_ratio_threshold = 1
+ggplot(cluster_clacl_m, aes(clacl_ratio, clacl_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_clacl_m, 
+                clacl_ratio >  clacl_ratio_threshold & 
+                clacl_n > clacl_n_threshold),
+    aes(clacl_ratio, clacl_n,label=label)
+  )
+###
+
+cluster_3 <- cluster_df %>% 
+  group_by(class,cl,cle) %>% 
+  summarise(all_n = n()) %>% 
+  arrange(desc(all_n))
+
+cluster_3_m <- cluster_3 %>%
+  left_join(cluster_cla,by="class")
+
+cluster_3_m <- cluster_3_m %>%
+  left_join(cluster_cle,by="cle")
+
+cluster_3_m <- cluster_3_m %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_3_m <- cluster_3_m %>% mutate(cla_ratio = all_n/cla_n)
+cluster_3_m <- cluster_3_m %>% mutate(cle_ratio = all_n/cle_n)
+cluster_3_m <- cluster_3_m %>% mutate(cl_ratio = all_n/cl_n)
+cluster_3_m <- cluster_3_m %>% mutate(all_ratio = cla_ratio + cle_ratio + cl_ratio)
+cluster_3_m <- cluster_3_m %>% mutate(label = paste(substr(class,1,2),"&",cl,"&",cle))
+cluster_3_m %>% arrange(desc(all_ratio))
+
+### plot
+all_n_threshold = 10
+all_ratio_threshold = 1
+ggplot(cluster_3_m, aes(all_ratio, all_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_3_m, 
+                all_ratio >  all_ratio_threshold & 
+                all_n > all_n_threshold),
+    aes(all_ratio, all_n,label=label)
+  )
+###
+
+cluster_cl_m <- cluster_group %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_m <- cluster_cl_m %>%
+  left_join(cluster_cle,by="cle")
+
+cluster_m <- cluster_m %>% mutate(cl_ratio = all_n/cl_n)
+cluster_m <- cluster_m %>% mutate(cle_ratio = all_n/cle_n)
+cluster_m <- cluster_m %>% mutate(all_ratio = cl_ratio + cle_ratio)
+cluster_m <- cluster_m %>% mutate(label = paste(cl,"&",cle))
+cluster_m %>% arrange(desc(all_ratio))
+
+### plot
+all_n_threshold = 10
+all_ratio_threshold = 1
+ggplot(cluster_m, aes(all_ratio, all_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_m, 
+                all_ratio >  all_ratio_threshold & 
+                  all_n > all_n_threshold),
+    aes(all_ratio, all_n,label=label)
+  )
+###
+
+
 
 ci = as.vector(membership(ci))
 class = V(iCon)$class,
