@@ -1,0 +1,119 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "9/11/2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Progress of this week
+Creating Ontology-based network map using Concept Class
+
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE}
+library("statnet")
+library("dplyr")
+library(RColorBrewer)
+
+setwd("~/work/ONS/")
+net.relation <- read.csv(file="MyData.csv")
+class_map <- read.csv(file="MyClass.csv",stringsAsFactors=FALSE)
+
+net_import <- network(net.relation,
+                      directed = FALSE,
+                      matrix.type="edgelist")
+
+df_c_attribute <- data.frame(
+  src_name = net_import %v% 'vertex.names'
+)
+df_c_merged <- df_c_attribute %>% left_join(class_map,by="src_name")
+net_import <- set.vertex.attribute(net_import,"class",df_c_merged[,2])
+
+rescale <- function(nchar, low, high){
+  min_d <- min(nchar)
+  max_d <- max(nchar)
+  rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
+  rscl
+}
+
+net <- network(net_import)
+
+df.cent <- data.frame(
+  con = net %v% 'vertex.names',
+  cla = net %v% 'class',
+  deg = degree(net_import,gmode="graph",cmode="indegree"),
+  cls = closeness(net_import,gmode="graph"),
+  bet = betweenness(net_import,gmode="graph"),
+  evc = evcent(net_import,gmode="graph")
+)
+
+### legend_class
+my_pal <- brewer.pal(10,"Paired")
+classcat <- as.factor(get.vertex.attribute(net_import,"class"))
+op <- par(mar=c(2,0,2,0))
+plot(net_import,vertex.cex=rescale(df.cent$bet,1,7),vertex.col=my_pal[classcat],main="Concepts colored by Class")
+legend("bottomleft",legend=levels(classcat),
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+       title="Concept Class")
+par(op)
+
+####
+bet_rank <- df.cent %>% arrange(desc(bet)) %>% head(15)
+
+library("rlist")
+### creating ID List
+url <- "http://cognitiveatlas.org/api/v-alpha/concept?"
+all <- list.load(url)
+all_df <- list.stack(all, fill=TRUE)
+
+class_name <- read.csv("class_name.csv",header = TRUE)
+class_df <- all_df[,c("name","id_concept_class")]
+class_merged <- left_join(class_df,class_name,by="id_concept_class")
+class_table_all <- class_merged %>% group_by(class_name) %>% summarize(count = n()) #%>% arrange(desc(count))
+class_table_rel <- df_c_merged %>% group_by(name) %>% summarize(count = n()) #%>% arrange(desc(count))
+class_table <- data.frame(
+  class = as.vector(class_table_all[,1]),
+  a_count = class_table_all[,2],
+  v_count =class_table_rel[,2]
+)
+colnames(class_table) <- c("class","a_count","v_count")
+class_table <- class_table %>% arrange(desc(a_count))
+class_table <- mutate(class_table, ratio = v_count/a_count * 100)
+
+library(knitr)
+kable(bet_rank[,c(1,2,3,5)])
+kable(class_table)
+```
+
+## Comment
+1. "working memory","memory"", "perception"", "recognition"",and "decision making"" are five major items by betweenness centrality
+2. "Perception", "Learning and Memory","Executive/Cognitive Control", and "Reasoning and decision making" are four major classes which located on the center of the network.
+3. Values of "v_count(connected items)/a_count(all items)" are varied in the classes.
+4. Some of items are intricatelly located across the class.(ex. Learning and Memory) 
+
+## Questions
+1. Why are relations of some concepts blank?
+2. How were the classes determined?
+3. How were the class of concepts determined?
+4. How can betweenness centrality between TM-based and Ontology-based be normalized?
+5. Why are the closeness centrality of all concepts zero?
+
+## Goal at the moment
+1. Cluster concepts by relations among concepts
+2. Classify concepts by relations among concepts
+3. Infer or verify relations by concept-task relation (MEASUREDBY value)
+
+## Next Step
+1. Creating subgroups using igraph instead of statnet to generate clusters
+2. Exploring affiliation network to generate concept-task ties
+
+## Next major task
+1. merger algorithm of CA concepts to compare with TM-based betweenness
+
+
+

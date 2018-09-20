@@ -1,0 +1,75 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "8/24/2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goal of This Week
+Create network plot using centrality
+
+## Progress of This Week
+1. rescale function to represent centrality
+
+## Output
+centrality.R
+
+```{r ons, echo = TRUE, eval=FALSE}
+rescale <- function(nchar, low, high){
+  min_d <- min(nchar)
+  max_d <- max(nchar)
+  rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
+  rscl
+}
+
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,vertex.cex=rescale(deg,1,7))
+par(op)
+
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,vertex.cex=rescale(bet,1,7))
+par(op)
+```
+
+
+Plot sample:
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE}
+library("statnet")
+net.edge <- read.csv(file="~/MyData.csv")
+net_import <- network(net.edge,
+                      matrix.type="edgelist")
+
+rescale <- function(nchar, low, high){
+  min_d <- min(nchar)
+  max_d <- max(nchar)
+  rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
+  rscl
+}
+
+deg = degree(net_import,gmode="graph",cmode="indegree")
+bet = betweenness(net_import,gmode="graph")
+
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,vertex.cex=rescale(deg,1,7))
+par(op)
+
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,vertex.cex=rescale(bet,1,7))
+par(op)
+```
+
+## Remaining Task
+1. Show label only on significant function
+
+## Discussion
+Discussed the following possible two scenario;
+1. Analyzing CA replicateing "Semantic Network Analysis of Ontologies" as discussion on mathematical understanding of CA
+2. Comparing text-mining based network analysis and ontology-relationship based network structure using "Mapping the Semantic Structure of Cognitive Neuroscience" as discussion on neuroscientific investigation
+###Conclusion
+Option2 is better to pursue.

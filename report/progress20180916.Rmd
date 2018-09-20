@@ -1,0 +1,550 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "9/16/2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Progress of this week
+1. Visualizing the feature of concepts and class
+2. Creating clusters using various clustering algorithm
+
+## Visualization
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE,results='asis'}
+library("dplyr")
+setwd("~/pj/ONS/dat/")
+
+library(ggplot2)
+##### class count
+base_df <- read.csv(file="MyBase.csv")
+class_map <- read.csv(file="MyClass.csv",stringsAsFactors=FALSE)
+base_merged <- base_df %>% left_join(class_map, by="src_name")
+
+ggplot(base_merged,aes(name,fill = relflg)) +
+  geom_bar() +
+  labs(title = "# of concepts by relation_flag(TRUE:relations exist)") +
+  theme(axis.text.x = element_text(angle = -90, size = 6))
+#detach(package:igraph)
+library(statnet)
+library(RColorBrewer)
+
+net.relation <- read.csv(file="MyData.csv")
+net_import <- network(net.relation,
+                      directed = FALSE,
+                      matrix.type="edgelist")
+df_c_attribute <- data.frame(
+  src_name = net_import %v% 'vertex.names'
+)
+df_c_merged <- df_c_attribute %>% left_join(class_map,by="src_name")
+net_import %v% 'class' <- as.vector(df_c_merged[,2])
+
+### Visualization
+df.cent <- read.csv(file="MyCenter.csv")
+#### ggplot
+# use display.brewer.all() to see all options
+
+##### deg & bet map
+deg_t <- 40
+bet_t <- 10000
+
+ggplot(df.cent, aes(deg,bet)) +
+  geom_point() +
+  facet_wrap(~cla) +
+  labs(title = "Significant Concepts measured by Deg & Bet") +
+  geom_text(
+    data=subset(df.cent, deg > deg_t | bet > bet_t),
+    aes(deg,bet,label=con))
+
+#### Network Map
+rescale <- function(nchar, low, high){
+  min_d <- min(nchar)
+  max_d <- max(nchar)
+  rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
+  rscl
+}
+
+####
+my_pal <- brewer.pal(10,"Paired")
+classcat <- as.factor(get.vertex.attribute(net_import,"class"))
+#### without label & with rescale
+op <- par(mar=c(2,0,2,0))
+plot(net_import,vertex.cex=rescale(df.cent$bet,1,7),
+     vertex.col=my_pal[classcat],
+     label = ifelse(betweenness(net_import,gmode="graph")>bet_t, net_import %v% 'vertex.names',""),
+     displaylabels=TRUE,
+     main="Concepts colored by Class")
+### legend_class
+legend("bottomleft",legend=levels(classcat),
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+       title="Concept Class")
+par(op)
+
+detach(package:statnet)
+library("igraph")
+library(intergraph)
+iCon <- asIgraph(net_import)
+coreness <- graph.coreness(iCon)
+#table(coreness)
+maxCoreness <- max(coreness)
+Vname <- get.vertex.attribute(iCon,name='vertex.names',
+                              index=V(iCon))
+V(iCon)$name <- Vname
+V(iCon)$color <- coreness + 1
+V(iCon)$class <- as.vector(df_c_merged[,2])
+  
+colors <- rainbow(maxCoreness)
+op <- par(mar=c(2,0,2,0))
+plot(iCon,vertex.label=coreness,
+     vertex.color=colors[coreness],
+     main="Concepts colored by Coreness")
+par(op)
+
+ceb <- cluster_edge_betweenness(iCon)
+cle <- cluster_leading_eigen(iCon)
+cl <- cluster_louvain(iCon)
+clp <- cluster_label_prop(iCon)
+ci <- cluster_infomap(iCon)
+
+mod_ceb <- modularity(ceb)
+mod_cle <- modularity(cle)
+mod_cl <- modularity(cl)
+mod_clp <- modularity(clp)
+mod_ci <- modularity(ci)
+
+cl_levels = c(
+  length(levels(as.factor(membership(cl)))),
+  length(levels(as.factor(membership(cle)))),
+  length(levels(as.factor(membership(ceb)))),
+  length(levels(as.factor(membership(clp)))),
+  length(levels(as.factor(membership(ci))))
+)
+
+cl_mod = c(mod_cl,mod_cle,mod_ceb,mod_clp,mod_ci)
+
+cl_name = c("Louvain","Leading Eigen","Edge Betweenness","Label Prop","Infomap")
+
+clbasic_df <- data_frame(
+  algorithm = cl_name,
+  levels = cl_levels,
+  modularity = cl_mod
+)
+
+ggplot(clbasic_df, 
+       aes(levels, modularity,
+         shape = algorithm, colour = algorithm)) +
+  geom_point() +
+  labs(title = "# of clusters & modularity by algorithm")
+
+cla <- as.numeric(as.factor(V(iCon)$class))
+ceb_cl <- compare(ceb,cl,method="adjusted.rand")
+cla_cl <- compare(cla,cl,method="adjusted.rand")
+cla_ceb <- compare(cla,ceb,method="adjusted.rand")
+
+com_out <- data_frame(
+  name = c("Edge Betweenness x Louvain","Class x Louvin","Class x Edge Betweenness"),
+  compare = c(ceb_cl,cla_cl,cla_ceb)
+)
+com_sort <- com_out %>% arrange(desc(compare))
+com_sort <- com_sort %>% mutate(algorithm = factor(name,levels = name))
+ggplot(com_sort,aes(algorithm,compare)) +
+  geom_bar(stat="identity") +
+  labs(title = "compare by algorithm") 
+##### 
+
+cluster_df <- data_frame(
+  name = names(membership(cl)),
+  class = V(iCon)$class,
+  cl = as.vector(membership(cl)),
+  cle = as.vector(membership(cle)),
+  ceb = as.vector(membership(ceb)),
+  clp = as.vector(membership(clp)),
+  ci = as.vector(membership(ci))
+)
+
+cluster_group <- cluster_df %>% 
+  group_by(cl,ceb) %>% 
+  summarise(all_n = n()) %>% 
+  arrange(desc(all_n))
+
+cluster_cl <- cluster_df %>% 
+  group_by(cl) %>% 
+  summarise(cl_n = n()) %>% 
+  arrange(desc(cl_n))
+
+cluster_ceb <- cluster_df %>% 
+  group_by(ceb) %>% 
+  summarise(ceb_n = n()) %>% 
+  arrange(desc(ceb_n))
+
+cluster_cla <- cluster_df %>% 
+  group_by(class) %>% 
+  summarise(cla_n = n()) %>% 
+  arrange(desc(cla_n))
+
+cluster_cl_m <- cluster_group %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_m <- cluster_cl_m %>%
+  left_join(cluster_ceb,by="ceb")
+
+cluster_m <- cluster_m %>% mutate(cl_ratio = all_n/cl_n)
+cluster_m <- cluster_m %>% mutate(ceb_ratio = all_n/ceb_n)
+cluster_m <- cluster_m %>% mutate(all_ratio = cl_ratio + ceb_ratio)
+cluster_m <- cluster_m %>% mutate(label = paste(cl,"&",ceb))
+
+### plot
+all_n_threshold = 10
+all_ratio_threshold = 1
+ggplot(cluster_m, aes(all_ratio, all_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_m, 
+                all_ratio >  all_ratio_threshold & 
+                all_n > all_n_threshold),
+    aes(all_ratio, all_n,label=label,colour="red")
+  ) +
+  labs(
+    x = "Ratio",
+    y = "Count",
+    title = "Consistency between Edge Betweenness & Louvin"
+    )
+###
+
+cluster_clacl <- cluster_df %>% 
+  group_by(class,cl) %>% 
+  summarise(clacl_n = n()) %>% 
+  arrange(desc(clacl_n))
+
+cluster_clacl_m <- cluster_clacl %>%
+  left_join(cluster_cla,by="class")
+
+cluster_clacl_m <- cluster_clacl_m %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_clacl_m <- cluster_clacl_m %>% mutate(cla_ratio = clacl_n/cla_n)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(cl_ratio = clacl_n/cl_n)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(clacl_ratio = cla_ratio + cl_ratio)
+cluster_clacl_m <- cluster_clacl_m %>% mutate(label = paste(substr(class,1,2),"&",cl))
+
+### plot
+clacl_n_threshold = 10
+clacl_ratio_threshold = 1
+ggplot(cluster_clacl_m, aes(clacl_ratio, clacl_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_clacl_m, 
+                clacl_ratio >  clacl_ratio_threshold & 
+                clacl_n > clacl_n_threshold),
+    aes(clacl_ratio, clacl_n,label=label,colour="red")
+  ) +
+  labs(
+    x = "Ratio",
+    y = "Count",
+    title = "Consistency between Class & Louvin"
+    )
+###
+
+cluster_claceb <- cluster_df %>% 
+  group_by(class,ceb) %>% 
+  summarise(claceb_n = n()) %>% 
+  arrange(desc(claceb_n))
+
+cluster_claceb_m <- cluster_claceb %>%
+  left_join(cluster_cla,by="class")
+
+cluster_claceb_m <- cluster_claceb_m %>%
+  left_join(cluster_ceb,by="ceb")
+
+cluster_claceb_m <- cluster_claceb_m %>% mutate(cla_ratio = claceb_n/ceb_n)
+cluster_claceb_m <- cluster_claceb_m %>% mutate(ceb_ratio = claceb_n/ceb_n)
+cluster_claceb_m <- cluster_claceb_m %>% mutate(claceb_ratio = cla_ratio + ceb_ratio)
+cluster_claceb_m <- cluster_claceb_m %>% mutate(label = paste(substr(class,1,2),"&",ceb))
+
+### plot
+claceb_n_threshold = 10
+claceb_ratio_threshold = 1
+ggplot(cluster_claceb_m, aes(claceb_ratio, claceb_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_claceb_m, 
+                claceb_ratio >  claceb_ratio_threshold & 
+                  claceb_n > claceb_n_threshold),
+    aes(claceb_ratio, claceb_n,label=label,colour="red")
+  ) +
+  labs(
+    x = "Ratio",
+    y = "Count",
+    title = "Consistency between Class & Edge Betweenness"
+    )
+###
+
+cluster_3 <- cluster_df %>% 
+  group_by(class,cl,ceb) %>% 
+  summarise(all_n = n()) %>% 
+  arrange(desc(all_n))
+
+cluster_3_m <- cluster_3 %>%
+  left_join(cluster_cla,by="class")
+
+cluster_3_m <- cluster_3_m %>%
+  left_join(cluster_ceb,by="ceb")
+
+cluster_3_m <- cluster_3_m %>%
+  left_join(cluster_cl,by="cl")
+
+cluster_3_m <- cluster_3_m %>% mutate(cla_ratio = all_n/cla_n)
+cluster_3_m <- cluster_3_m %>% mutate(ceb_ratio = all_n/ceb_n)
+cluster_3_m <- cluster_3_m %>% mutate(cl_ratio = all_n/cl_n)
+cluster_3_m <- cluster_3_m %>% mutate(all_ratio = cla_ratio + ceb_ratio + cl_ratio)
+cluster_3_m <- cluster_3_m %>% mutate(label = paste(substr(class,1,2),"&",cl,"&",ceb))
+
+### plot
+all_n_threshold = 10
+all_ratio_threshold = 1
+ggplot(cluster_3_m, aes(all_ratio, all_n)) +
+  geom_point() +
+  geom_text(
+    data=subset(cluster_3_m, 
+                all_ratio >  all_ratio_threshold & 
+                all_n > all_n_threshold),
+    aes(all_ratio, all_n,label=label,colour="red")
+  ) +
+  labs(
+    x = "Ratio",
+    y = "Count",
+    title = "Consistency among Class, Louvin and Edge Betweenness"
+    )
+###
+
+center_df <- read.csv(file="MyCenter.csv",stringsAsFactors=FALSE)
+cluster_m <- cluster_df %>% left_join(center_df, by = c("name" = "con"))
+important_df <- cluster_m %>% 
+  filter(cl==35 & ceb==6) %>%
+  select(name,class,deg,bet)
+
+ggplot(important_df, aes(deg,bet,fill=class,color=class)) +
+  geom_point() +
+  #facet_wrap(~cla) +
+  labs(title = "35 & 6 Concepts measured by Deg & Bet") +
+  geom_text(
+    data=subset(important_df, deg > 10 | bet > 2500),
+    aes(deg,bet,label=name),
+    vjust = "inward", hjust="inward"
+    )
+
+iCon_m <- iCon %>% set_vertex_attr("ceb", value = membership(ceb))
+iCon_m <- iCon_m %>% set_vertex_attr("cl", value = membership(cl))
+
+subg <- subgraph(as.undirected(iCon_m),which((V(iCon_m)$cl==35) & (V(iCon_m)$ceb==6)))
+
+rescale <- function(nchar, low, high){
+  min_d <- min(nchar)
+  max_d <- max(nchar)
+  rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
+  rscl
+}
+
+my_pal <- brewer.pal(10,"Paired")
+classcat <- as.factor(V(subg)$class)
+plot(subg,
+     label=layout.kamada.kawai, 
+     vertex.label=NA,
+     vertex.color=my_pal[classcat],
+     legend = TRUE,
+     vertex.size=rescale(betweenness(subg),1,20))
+legend("bottomleft",legend=levels(as.factor(V(subg)$class)),
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+       title="Concept Class")
+
+
+library(knitr)
+kable(important_df %>% arrange(desc(bet)), 
+      caption = "35 & 6 Concepts Ordered by Betweenness")
+
+important_df <- cluster_m %>% 
+  filter(cl==30 & ceb==4) %>%
+  select(name,class,deg,bet)
+
+ggplot(important_df, aes(deg,bet,fill=class,color=class)) +
+  geom_point() +
+  #facet_wrap(~cla) +
+  labs(title = "30 & 4 Concepts measured by Deg & Bet") +
+  geom_text(
+    data=subset(important_df, deg > 10 | bet > 2500),
+    aes(deg,bet,label=name),
+    vjust = "inward", hjust="inward"
+    )
+
+iCon_m <- iCon %>% set_vertex_attr("ceb", value = membership(ceb))
+iCon_m <- iCon_m %>% set_vertex_attr("cl", value = membership(cl))
+
+subg <- subgraph(as.undirected(iCon_m),which((V(iCon_m)$cl==30) & (V(iCon_m)$ceb==4)))
+
+classcat <- as.factor(V(subg)$class)
+plot(subg,
+     label=layout.kamada.kawai, 
+     vertex.label=NA,
+     vertex.color=my_pal[classcat],
+     legend = TRUE,
+     vertex.size=rescale(betweenness(subg),1,20))
+legend("bottomleft",legend=levels(as.factor(V(subg)$class)),
+       col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+       title="Concept Class")
+
+
+library(knitr)
+kable(important_df %>% arrange(desc(bet)), 
+      caption = "30 & 4 Concepts Ordered by Betweenness")
+
+cl_subg_scatter <- function(i,cl_df){
+    df <- cl_df %>% 
+      filter(cl == i) %>%
+      select(name,class,deg,bet)
+    if(length(df$color > 1)){
+      p <- ggplot(df, aes(deg,bet,fill=class,color=class))
+    }else{
+      p <- ggplot(df, aes(deg,bet))
+    }
+    p <- p +
+      geom_point() +
+      labs(title = paste("Louvin " ,i, " Concepts measured by Deg & Bet")) +
+      geom_text(
+        data=subset(df, deg > 10 | bet > 2500),
+        aes(deg,bet,label=name),
+        vjust = "inward", hjust="inward"
+      )
+
+      k <- kable(df %>% arrange(desc(bet)), 
+          caption = paste("Louvin ", i,  " Concepts Ordered by Betweenness"))
+
+      list(scatter = p, table = k)
+}
+
+cl_subg_plot <- function(i,g){
+  subg <- subgraph(as.undirected(g),which((V(g)$cl==i)))
+  classcat <- as.factor(V(subg)$class)
+  my_pal <- brewer.pal(10,"Paired")
+  p <- plot(subg,
+      label=layout.kamada.kawai, 
+      vertex.label=NA,
+#      vertex.color=my_pal[classcat],
+      legend = TRUE,
+      vertex.size=degree(subg))
+  p
+
+#  legend("bottomleft",legend=levels(as.factor(V(subg)$class)),
+#          col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+#          title="Concept Class")
+}
+
+for (i in 1:length(levels(as.factor(membership(cl))))){
+  s <- cl_subg_scatter(i,cluster_m)
+  cat('\n')
+  print(s)
+  cat('\n\n')
+  p <- cl_subg_plot(i,iCon_m)
+  print(p)
+  cat('\n\n')
+}
+
+ceb_subg_scatter <- function(i,cl_df){
+    df <- cl_df %>% 
+      filter(ceb == i) %>%
+      select(name,class,deg,bet)
+    if(length(df$color > 1)){
+      p <- ggplot(df, aes(deg,bet,fill=class,color=class))
+    }else{
+      p <- ggplot(df, aes(deg,bet))
+    }
+    p <- p +
+      geom_point() +
+      labs(title = paste("Edge Betweenness " ,i, " Concepts measured by Deg & Bet")) +
+      geom_text(
+        data=subset(df, deg > 10 | bet > 2500),
+        aes(deg,bet,label=name),
+        vjust = "inward", hjust="inward"
+      )
+
+      k <- kable(df %>% arrange(desc(bet)), 
+          caption = paste("Edge Betweenness ", i,  " Concepts Ordered by Betweenness"))
+
+    return(list(scatter = p, table = k))
+}
+
+ceb_subg_plot <- function(i,g){
+  subg <- subgraph(as.undirected(g),which((V(g)$ceb==i)))
+  classcat <- as.factor(V(subg)$class)
+  my_pal <- brewer.pal(10,"Paired")
+  p <- plot(subg,
+      label=layout.kamada.kawai, 
+      vertex.label=NA,
+#      vertex.color=my_pal[classcat],
+      legend = TRUE,
+      vertex.size=degree(subg))
+  return(p)
+
+#  legend("bottomleft",legend=levels(as.factor(V(subg)$class)),
+#          col=my_pal,pch=19, pt.cex=0.5, bty="n",cex=0.5,
+#          title="Concept Class")
+}
+
+for (i in 1:length(levels(as.factor(membership(ceb))))){
+  s <- ceb_subg_scatter(i,cluster_m)
+  cat('\n')
+  print(s)
+  cat('\n\n')
+  p <- ceb_subg_plot(i,iCon_m)
+  print(p)
+  cat('\n\n')
+}
+
+
+
+```
+
+## Hypothesis
+- Assumption
+  1. Algorithms which show high modularity can form subgroups well.
+  2. # and ratio of overlap between two clusters generated by two different algorithms can represent robustness of the cluster. 
+  3. # and ratio of overlap between a concept class and a cluster can represent validity of a concept class.
+- Result
+1. "Louvin" and "Edge Betweenness" are the two algorithms which shows highest modularity score.
+2. The cluster No.35 of Louvin and No.6 of Edge Betweenness is the highest # and ratio of overlap.
+  - Center of this overlap is "working memory"
+  - This subgroup are formed by mainly  Executive/Cognitive Control but including some other classes such as "Learning Memory", "Attention", and "NA".
+3. The cluster No.30 of Louvin and No.4 of Edge Betweenness is the second highest # and ratio of overlap.
+  - Center of this overlap includes mainly "perception" class with some "NA" concepts.
+  - Center of this subgroup detected by betweeness centerality are perception, detection, and visual perception.
+
+## Questions
+1. What is modularity?
+2. How does the "compare" function work?
+3. Why are relations of some concepts blank?
+4. How were the classes determined?
+5. How were the class of concepts determined?
+6. How can betweenness centrality between TM-based and Ontology-based be normalized?
+7. Why are the closeness centrality of all concepts zero?
+8. What is coreness?
+
+## Goal at the moment
+1. Cluster concepts by relations among concepts (done)
+2. Classify concepts by relations among concepts 
+3. Infer or verify relations by concept-task relation (MEASUREDBY value)
+
+## Next Step
+1. Investigate the theory of clustering algorithm and modularity
+2. Interprete clusters
+3. Exploring affiliation network to generate concept-task ties
+
+## Next major task
+1. merger algorithm of CA concepts to compare with TM-based betweenness
+
+
+

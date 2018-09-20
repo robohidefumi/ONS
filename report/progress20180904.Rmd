@@ -1,0 +1,106 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "9/4/2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goal
+1. Comparison of conceptual betweenness between TM-based and Ontology-based
+2. Comparison of network map between TM-based and Ontology-based
+3. Creating functional network using ontology
+
+## Goal of this week
+1. Comparison of conceptual betweenness between TM-based and Ontology-based
+
+## Progress of This Week
+1. creating TOP30 concept by major centrality
+2. Represent class of concept
+
+## Output
+centrality.R
+
+```{r ons, echo = TRUE, eval=FALSE}
+net <- network(net_import)
+
+df.cent <- data.frame(
+  con = net %v% 'vertex.names',
+  deg = degree(net_import,gmode="graph",cmode="indegree"),
+  cls = closeness(net_import,gmode="graph"),
+  bet = betweenness(net_import,gmode="graph"),
+  evc = evcent(net_import,gmode="graph")
+)
+
+deg_rank <- df.cent %>% arrange(desc(deg)) %>% head(30)
+bet_rank <- df.cent %>% arrange(desc(bet)) %>% head(30)
+evc_rank <- df.cent %>% arrange(desc(evc)) %>% head(30)
+cent_rank <- cbind(deg_rank[,c(1,2)],bet_rank[,c(1,4)],evc_rank[,c(1,5)])
+
+library("rlist")
+### creating ID List
+url <- "http://cognitiveatlas.org/api/v-alpha/concept?"
+all <- list.load(url)
+all_df <- list.stack(all, fill=TRUE)
+
+class_name <- read.csv("class_name.csv",header = TRUE)
+class_df <- all_df[,c("name","id_concept_class")]
+class_merged <- left_join(class_df,class_name,by="id_concept_class")
+class_table <- class_merged %>% group_by(class_name) %>% summarize(count = n()) %>% arrange(desc(count))
+```
+
+
+Plot sample:
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE}
+library("statnet")
+library("dplyr")
+net.edge <- read.csv(file="~/MyData.csv")
+net_import <- network(net.edge,
+                      matrix.type="edgelist")
+
+net <- network(net_import)
+
+df.cent <- data.frame(
+  con = net %v% 'vertex.names',
+  deg = degree(net_import,gmode="graph",cmode="indegree"),
+  cls = closeness(net_import,gmode="graph"),
+  bet = betweenness(net_import,gmode="graph"),
+  evc = evcent(net_import,gmode="graph")
+)
+
+deg_rank <- df.cent %>% arrange(desc(deg)) %>% head(30)
+bet_rank <- df.cent %>% arrange(desc(bet)) %>% head(30)
+evc_rank <- df.cent %>% arrange(desc(evc)) %>% head(30)
+cent_rank <- cbind(deg_rank[,c(1,2)],bet_rank[,c(1,4)],evc_rank[,c(1,5)])
+
+library("rlist")
+### creating ID List
+url <- "http://cognitiveatlas.org/api/v-alpha/concept?"
+all <- list.load(url)
+all_df <- list.stack(all, fill=TRUE)
+
+class_name <- read.csv("class_name.csv",header = TRUE)
+class_df <- all_df[,c("name","id_concept_class")]
+class_merged <- left_join(class_df,class_name,by="id_concept_class")
+class_table <- class_merged %>% group_by(class_name) %>% summarize(count = n()) %>% arrange(desc(count))
+
+library(knitr)
+kable(cent_rank)
+kable(class_table)
+
+```
+
+## Remaining Task
+1. merger algorithm of concepts to compare with TM-based betweenness
+2. Add class to the conceptual network map in order to explore NA class
+3. Verify the idea to devise an algorithm to determine class by relationship of concept
+
+## Other learnings and questions
+1. Learning: adjacent matrix of concept is undirected.s
+2. closeness betweenness of all concepts is zero. 
+

@@ -1,0 +1,89 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "8/9/2018"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goal of This Week
+Import from CA API to R statnete format
+
+## Progress of This Week
+1. Load json output of CA into R using rlist
+   - Json format of CA whole record is a little different from json format of CA individual record.
+   - Obtain whole record of CA concepts
+   - Obtain individual record using whole concept_id
+2. Export rlist format to statnet format "network"
+   - create adjacent matirix using as.sociomatrix
+   - create plot
+
+## Output
+ons_20180809.R
+
+```{r ons, echo = TRUE, eval=FALSE}
+### creating concept_id list
+library("rlist")
+url <- "http://cognitiveatlas.org/api/v-alpha/concept?"
+all <- list.load(url)
+id_list <- list.map(all, id)
+
+### creating API url list using concept_id
+base <- "http://cognitiveatlas.org/api/v-alpha/concept?id="
+url_list <- list.apply(id_list, function(x){paste(base,x,sep="")})
+
+### creating list by concept
+edge_list <- list.apply(url_list,function(x){
+  con <- list.load(x) # con stands for "concept"
+  src_name <- con$name
+  edge_list <- list.select(con$relationships,src_name,dst_name = name, relationship)
+  list.stack(edge_list)
+})
+edge_df <- list.rbind(edge_list)
+
+### saving data frame as CSV
+write.csv(edge_df[,1:2], file = "MyData.csv",
+          row.names = FALSE)
+net.edge <- read.csv(file="MyData.csv")
+net_import <- network(net.edge,
+                      matrix.type="edgelist")
+
+### creating plot
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,mode="fruchtermanreingold",vertex.cex=1.5)
+par(op)
+
+### get vertex attribute
+get.vertex.attribute(net_import,"src_name")
+### creating adjacent matrix
+adjacent <- as.sociomatrix(net_import)
+write.csv(adjacent, file = "adjacent.csv")
+
+### count relation
+library("dplyr")
+edge_df %>% group_by(relationship) %>% summarize(count = n())
+
+### centrality analysis
+degree(net_import,gmode="graph")
+closeness(net_import,gmode="graph")
+betweenness(net_import,gmode="graph")
+```
+
+
+Plot sample:
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE}
+library("statnet")
+net.edge <- read.csv(file="~/MyData.csv")
+net_import <- network(net.edge,
+                      matrix.type="edgelist")
+
+op <- par(mar = rep(0,4), mfrow=c(1,2))
+plot(net_import,mode="fruchtermanreingold",vertex.cex=1.5)
+par(op)
+```
+
