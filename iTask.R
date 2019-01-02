@@ -4,6 +4,7 @@ library("rlist")
 #detach(package:statnet)
 library("igraph")
 library("intergraph")
+library("tikzDevice")
 
 rescale <- function(nchar, low, high){
   min_d <- min(nchar)
@@ -11,7 +12,6 @@ rescale <- function(nchar, low, high){
   rscl <- ((high-low)*(nchar-min_d)) / (max_d-min_d)+low
   rscl
 }
-
 
 setwd("~/pj/ONS/dat/")
 tc_df <- read.csv(file="task_concept.csv",stringsAsFactors=FALSE)
@@ -29,27 +29,41 @@ colors <- c("blue","red")
 
 ##### iTaskそのもののネットワーク図を作ったが、見てもあまり意味ない。
 
-#### Tex出力用
-library("tikzDevice")
-tikz("iTask_biparate.tex",width = 5, height = 4)
+#### R markdown出力用(スライド1枚め)
+cat("## Task Ontology Visualization")
+cat("\n\n")
 plot(iTask,vertex.color = colors[V(iTask)$type+1],
      vertex.shape=shapes[V(iTask)$type+1],
      vertex.size=10,vertex.label=NA)
-dev.off()
+cat("\n\n")
 
-#### R markdown出力用
-p1 <- plot(iTask,vertex.color = colors[V(iTask)$type+1],
-     vertex.shape=shapes[V(iTask)$type+1],
-     vertex.size=10,vertex.label=NA)
-
-#### R markdown出力用
 ##### Conceptual Networkを作る 
 iTask.pr <- bipartite.projection(iTask)
 iTask.con <- iTask.pr$proj1
 ##### Conceptual Networkの中心性取得
 V(iTask.con)$bet <- betweenness(iTask.con)
 V(iTask.con)$deg <- degree(iTask.con)
-##### 作図
-p_con <- plot(iTask.con, vertex.color="red",
+
+#### R markdown出力用(スライド2枚め)
+cat("## Conceptual Network Visualization")
+cat("\n\n")
+plot(iTask.con, vertex.color="red",
      vertex.shape="circle",vertex.size=rescale(V(iTask.con)$bet,1,20),
      vertex.label=NA)
+cat("\n\n")
+
+##### Task Networkを作る 
+iTask.task <- iTask.pr$proj2
+##### Task中心性を取得
+V(iTask.task)$bet <- betweenness(iTask.task)
+V(iTask.task)$deg <- degree(iTask.task)
+
+#### R markdown出力用(スライド3枚め)
+cat("## Task Network Visualization")
+cat("\n\n")
+plot(iTask.task, vertex.color="red",
+     vertex.shape="circle",vertex.size=rescale(V(iTask.task)$bet,1,20),
+     vertex.label=NA)
+cat("\n\n")
+
+
