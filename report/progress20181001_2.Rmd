@@ -1,0 +1,22 @@
+---
+title: "Concept List by Cluster"
+author: "Hidefumi Watanabe"
+date: "10/4/2018"
+output:
+  pdf_document: default
+html_document:
+  df_print: paged
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE,results='asis'}
+source("../investigate_cluster.R")
+for(x in seq_along(k_list)){
+  if(!is.null(k_list[[x]])){
+    print(k_list[[x]])
+    cat("\n\n")
+  }
+}
+```

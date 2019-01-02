@@ -1,0 +1,22 @@
+---
+title: "Progress Report"
+author: "Hidefumi Watanabe"
+date: "10/04/2018"
+output:
+  ioslides_presentation: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+- Analyzing number of concepts by clusters in each algorithm
+- Creating table of concpets by clusters over the threshold(n>25) in each algorithm
+- Creating a proposal of benefits of clustering
+
+## Hypothesis: Benefits of clustering
+- Determining the class of "NA" concepts
+- Defining new class & sub-class of existing classes
+- Recommending alternative classes for concepts
+  

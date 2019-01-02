@@ -1,0 +1,35 @@
+---
+title: "Number of Concepts by Cluster"
+author: "Hidefumi Watanabe"
+date: "10/04/2018"
+output:
+  ioslides_presentation: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, echo = FALSE, eval=TRUE, warning=FALSE,error=FALSE, message=FALSE,results='asis'}
+source("../investigate_cluster.R")
+seq_along(slide) %>% map(
+  function(x){
+    if(is.na(slide[[x]]) == FALSE){
+      cat(slide[[x]]$title)
+      cat("\n\n")
+      print(slide[[x]]$plot)
+      cat("\n\n")
+    }
+})
+
+seq_along(slide_thr) %>% map(
+  function(x){
+    #if(is.na(slide_thr[[x]]) == FALSE){
+      cat(slide_thr[[x]]$title)
+      cat("\n\n")
+      print(slide_thr[[x]]$plot)
+      cat("\n\n")
+    #}
+})
+```
