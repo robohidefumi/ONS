@@ -151,3 +151,58 @@ cat("## Diff of Centrality between Curated & Biparete")
 cat("\n\n")
 print(g)
 cat("\n\n")
+
+#### 複数ネットワークの比較
+iCon <- graph.data.frame(net.relation, directed=FALSE)
+iCon <- simplify(iCon) #重複するエッジをユニークにする
+###不要になった
+#intGraph <- graph.intersection(iCon,iTask.con)
+
+# iTask.conに存在するiCon要素の評価
+a_dup <- V(iCon)$name %in% V(iTask.con)$name
+# iConに存在するiTask.con要素の評価
+b_dup <- V(iTask.con)$name %in% V(iCon)$name
+# ネットワークのdup値に評価結果を格納する
+V(iCon)$dup <- a_dup
+V(iTask.con)$dup <- b_dup
+
+
+iTask_dup_df <- data.frame(
+  name = V(iTask.con)$name,
+  bet_dup = betweenness(iTask.con),
+  deg_dup = degree(iTask.con),
+  dup = V(iTask.con)$dup
+)
+
+iTask_df <- df.cent %>% left_join(iTask_dup_df,by="name")
+
+g <- ggplot(subset(iTask_df,dup == TRUE), aes(bet_dup,deg_dup)) +
+  geom_point() +
+  geom_text(
+    data=subset(iTask_df, deg_dup > 40 | bet_dup > 5000),
+    aes(bet_dup,deg_dup,label=name))
+
+cat("## Biparete Centrality only exisiting on Curated")
+cat("\n\n")
+print(g)
+cat("\n\n")
+
+iCon_dup_df <- data.frame(
+  name = V(iCon)$name,
+  bet_dup = betweenness(iCon),
+  deg_dup = degree(iCon),
+  dup = V(iCon)$dup
+)
+
+iCon_df <- df.cent %>% left_join(iCon_dup_df,by="name")
+
+g <- ggplot(subset(iCon_df,dup == TRUE), aes(bet_dup,deg_dup)) +
+  geom_point() +
+  geom_text(
+    data=subset(iCon_df, deg_dup > 40 | bet_dup > 5000),
+    aes(bet_dup,deg_dup,label=name))
+
+cat("## Curated Centrality only exisiting on Biparate")
+cat("\n\n")
+print(g)
+cat("\n\n")
